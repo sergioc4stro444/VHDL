@@ -1,0 +1,101 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+use work.mem_pkg.all;
+ 
+entity top_mem_system is
+    port (
+        clk      : in  std_logic;
+        rst_n    : in  std_logic;
+        selector : in  std_logic_vector(1 downto 0);
+        addr_sw  : in  std_logic_vector(3 downto 0);
+        modo_sw  : in  std_logic;
+        HEX0     : out std_logic_vector(6 downto 0);
+        HEX1     : out std_logic_vector(6 downto 0);
+        HEX2     : out std_logic_vector(6 downto 0);
+        HEX3     : out std_logic_vector(6 downto 0);
+        LEDG     : out std_logic_vector(7 downto 0);
+        LEDR     : out std_logic_vector(2 downto 0)
+    );
+end entity top_mem_system;
+ 
+architecture Behavioral of top_mem_system is
+ 
+    type state_t is (S_READ_ROM, S_WAIT_ROM, S_WRITE_RAM, S_READ_RAM);
+    signal state : state_t := S_READ_ROM;
+ 
+    signal rst          : std_logic;
+    signal clk_lento    : std_logic;
+    signal addr_cnt     : addr_t := (others => '0');
+    signal addr_mux     : addr_t;
+    signal rom_data     : word_t;
+    signal ram_dout     : word_t;
+    signal we_sig       : std_logic := '0';
+    signal re_sig       : std_logic := '0';
+    signal done_reg     : std_logic := '0';
+    signal addr_display : addr_t;
+ 
+begin
+ 
+    rst <= not rst_n;
+ 
+    U_DIV : entity work.divisor_frecuencia
+        port map (clk_in => clk, selector => selector, clk_out => clk_lento);
+ 
+    addr_mux <= addr_sw when modo_sw = '1' else addr_cnt;
+ 
+    U_ROM : entity work.rom_sync
+        port map (clk => clk_lento, addr => addr_mux, data_out => rom_data);
+ 
+    U_RAM : entity work.ram_sincrona
+        port map (clk => clk_lento, we => we_sig, re => re_sig,
+                  addr => addr_mux, data_in => rom_data, data_out => ram_dout);
+ 
+    process(clk_lento)
+    begin
+        if rising_edge(clk_lento) then
+            if rst = '1' then
+                state    <= S_READ_ROM;
+                addr_cnt <= (others => '0');
+                we_sig   <= '0';
+                re_sig   <= '0';
+                done_reg <= '0';
+            elsif modo_sw = '0' then
+                case state is
+                    when S_READ_ROM =>
+                        we_sig <= '0'; re_sig <= '0'; done_reg <= '0';
+                        state  <= S_WAIT_ROM;
+                    when S_WAIT_ROM =>
+                        state <= S_WRITE_RAM;
+                    when S_WRITE_RAM =>
+                        we_sig <= '1'; re_sig <= '0';
+                        state  <= S_READ_RAM;
+                    when S_READ_RAM =>
+                        we_sig <= '0'; re_sig <= '1';
+                        if addr_cnt = "1111" then
+                            addr_cnt <= (others => '0'); done_reg <= '1';
+                        else
+                            addr_cnt <= std_logic_vector(unsigned(addr_cnt) + 1);
+                            done_reg <= '0';
+                        end if;
+                        state <= S_READ_ROM;
+                end case;
+            else
+                we_sig <= '0'; re_sig <= '1'; done_reg <= '0';
+            end if;
+        end if;
+    end process;
+ 
+    addr_display <= addr_sw when modo_sw = '1' else addr_cnt;
+ 
+    U_HEX0 : entity work.dec_7seg port map (bcd_in => ram_dout(3 downto 0), seg_out => HEX0);
+    U_HEX1 : entity work.dec_7seg port map (bcd_in => ram_dout(7 downto 4), seg_out => HEX1);
+    U_HEX2 : entity work.dec_7seg port map (bcd_in => addr_display,         seg_out => HEX2);
+    U_HEX3 : entity work.dec_7seg port map (bcd_in => "0000",               seg_out => HEX3);
+ 
+    LEDG    <= ram_dout;
+    LEDR(0) <= we_sig;
+    LEDR(1) <= re_sig;
+    LEDR(2) <= done_reg;
+ 
+end architecture Behavioral;

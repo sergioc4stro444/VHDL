@@ -1,0 +1,37 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+entity divisor_frecuencia is
+    port (
+        clk_in   : in  std_logic;
+        selector : in  std_logic_vector(1 downto 0);
+        clk_out  : out std_logic
+    );
+end entity divisor_frecuencia;
+
+architecture rtl of divisor_frecuencia is
+    signal contador : unsigned(24 downto 0) := (others => '0');
+    signal clk_reg  : std_logic := '0';
+    signal limite   : unsigned(24 downto 0);
+begin
+    with selector select
+        limite <=
+            to_unsigned(16000000, 25) when "00",
+            to_unsigned( 4000000, 25) when "01",
+            to_unsigned( 1000000, 25) when "10",
+            to_unsigned(  250000, 25) when others;
+
+    process(clk_in)
+    begin
+        if rising_edge(clk_in) then
+            if contador >= limite then
+                contador <= (others => '0');
+                clk_reg  <= not clk_reg;
+            else
+                contador <= contador + 1;
+            end if;
+        end if;
+    end process;
+    clk_out <= clk_reg;
+end architecture rtl;

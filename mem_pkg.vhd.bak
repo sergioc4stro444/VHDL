@@ -1,0 +1,36 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+
+package mem_pkg is
+
+    constant DATA_WIDTH : integer := 8;
+    constant ADDR_WIDTH : integer := 4;
+
+    subtype word_t is std_logic_vector(DATA_WIDTH-1 downto 0);
+    subtype addr_t is std_logic_vector(ADDR_WIDTH-1 downto 0);
+    type mem_t is array (0 to (2**ADDR_WIDTH)-1) of word_t;
+
+    component rom_sync
+        port (
+            clk      : in  std_logic;
+            addr     : in  addr_t;
+            data_out : out word_t
+        );
+    end component;
+
+    component ram_sincrona
+        port (
+            clk      : in  std_logic;
+            we       : in  std_logic;
+            re       : in  std_logic;
+            addr     : in  addr_t;
+            data_in  : in  word_t;
+            data_out : out word_t
+        );
+    end component;
+
+end package mem_pkg;
+
+package body mem_pkg is
+end package body mem_pkg;

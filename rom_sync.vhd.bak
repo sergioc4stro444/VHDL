@@ -1,0 +1,32 @@
+library IEEE;
+use IEEE.STD_LOGIC_1164.ALL;
+use IEEE.NUMERIC_STD.ALL;
+use work.mem_pkg.all;
+
+entity rom_sync is
+    port (
+        clk      : in  std_logic;
+        addr     : in  addr_t;
+        data_out : out word_t
+    );
+end entity rom_sync;
+
+architecture rtl of rom_sync is
+    constant mem : mem_t := (
+        0  => x"A1", 1  => x"B2", 2  => x"C3", 3  => x"D4",
+        4  => x"E5", 5  => x"F6", 6  => x"07", 7  => x"18",
+        8  => x"29", 9  => x"3A", 10 => x"4B", 11 => x"5C",
+        12 => x"6D", 13 => x"7E", 14 => x"8F", 15 => x"90"
+    );
+    signal q_reg  : word_t := (others => '0');
+    signal addr_i : integer range 0 to 2**ADDR_WIDTH-1;
+begin
+    addr_i <= to_integer(unsigned(addr));
+    process(clk)
+    begin
+        if rising_edge(clk) then
+            q_reg <= mem(addr_i);
+        end if;
+    end process;
+    data_out <= q_reg;
+end architecture rtl;
